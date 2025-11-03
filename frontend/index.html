@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graph Path Visualization</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+    <h3>Path Visualization</h3>
+    <select id="algorithm">
+        <option value="bfs">BFS</option>
+        <option value="dfs">DFS</option>
+        <option value="dijkstra">Dijkstra</option>
+    </select>
+    Start: <input id="start" value="A">
+    Goal: <input id="goal" value="E">
+    <button onclick="drawPath()">Draw Path</button>
+
+    <div id="map" style="width: 600px; height: 400px;"></div>
+
+    <script>
+        var map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {}).addTo(map);
+
+        const nodes = {
+            "A":[0,0], "B":[0,1], "C":[1,0], "D":[1,1], "E":[2,1]
+        };
+
+        async function drawPath(){
+            const algo = document.getElementById('algorithm').value;
+            const start = document.getElementById('start').value;
+            const goal = document.getElementById('goal').value;
+
+            const res = await fetch(`http://localhost:8000/${algo}`, {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({start, goal})
+            });
+            const data = await res.json();
+            let path = algo === 'dijkstra' ? data.min_path : data.min_steps;
+
+            let latlngs = path.map(n => nodes[n]);
+            L.polyline(latlngs, {color:'red'}).addTo(map);
+        }
+    </script>
+</body>
+</html>
