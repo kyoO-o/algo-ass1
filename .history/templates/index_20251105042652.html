@@ -1,0 +1,155 @@
+<!-- templates/index.html -->
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8" />
+  <title>UB Shortest Path Demo (BFS, DFS, Dijkstra)</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+    #top-bar {
+      padding: 8px 12px;
+      background: #1f2933;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+    }
+    #top-bar select {
+      padding: 2px 6px;
+    }
+    #status {
+      margin-left: auto;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    #map {
+      height: calc(100vh - 40px);
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="top-bar">
+    <strong>UB Route Finder</strong>
+    <span>
+      Алгоритм:
+      <select id="alg">
+        <option value="dijkstra">Dijkstra – хамгийн богино жинтэй зам</option>
+        <option value="bfs">BFS – хамгийн цөөн алхамтай зам</option>
+        <option value="dfs">DFS – нэг боломжит зам</option>
+      </select>
+    </span>
+    <span>Map дээр эхлээд эхлэх, дараа нь төгсгөх цэг дээр дараарай (2 click).</span>
+    <span id="status">Бэлэн.</span>
+  </div>
+  <div id="map"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    // Flask-с center_lat, center_lon ирж байгаа
+    const centerLat = {{ center_lat | tojson }};
+    const centerLon = {{ center_lon | tojson }};
+
+    const map = L.map("map").setView([centerLat, centerLon], 12);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    let startMarker = null;
+    let endMarker = null;
+    let routeLayer = null;
+    let clickCount = 0;
+
+    const statusEl = document.getElementById("status");
+    const algSelect = document.getElementById("alg");
+
+    map.on("click", function (e) {
+      clickCount++;
+      try {
+      const type = (clickCount === 1) ? "start" : (clickCount === 2 ? "end" : "extra");
+      fetch("/api/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          lat: e.latlng.lat,
+          lon: e.latlng.lng,
+          alg: document.getElementById("alg")?.value || null
+        }),
+      }).catch(()=>{});
+    } catch (_) {}
+      if (clickCount === 1) {
+        if (startMarker) map.removeLayer(startMarker);
+        if (routeLayer) {
+          map.removeLayer(routeLayer);
+          routeLayer = null;
+        }
+        startMarker = L.marker(e.latlng).addTo(map).bindPopup("Эхлэх цэг");
+        statusEl.textContent = "Төгсгөх цэг дээр дараарай (2 дахь click).";
+      } else if (clickCount === 2) {
+        if (endMarker) map.removeLayer(endMarker);
+        endMarker = L.marker(e.latlng).addTo(map).bindPopup("Төгсгөх цэг");
+        clickCount = 0;
+        findRoute();
+      }
+    });
+
+    function findRoute() {
+      if (!startMarker || !endMarker) return;
+
+      const alg = algSelect.value;
+      const s = startMarker.getLatLng();
+      const t = endMarker.getLatLng();
+
+      statusEl.textContent = "Зам тооцож байна...";
+
+      const url =
+        `/api/path?alg=${alg}` +
+        `&start_lon=${s.lng}&start_lat=${s.lat}` +
+        `&end_lon=${t.lng}&end_lat=${t.lat}`;
+
+      fetch(url)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.error) {
+            statusEl.textContent = `Алдаа: ${data.error}`;
+            return;
+          }
+          if (routeLayer) map.removeLayer(routeLayer);
+
+          // backend-с {lon, lat} ирж байна -> Leaflet [lat, lon] болгоно
+          const latlngs = data.coords.map((c) => [c.lat, c.lon]);
+          routeLayer = L.polyline(latlngs, { weight: 5 }).addTo(map);
+          map.fitBounds(routeLayer.getBounds());
+
+          let info = `Алгоритм: ${data.algorithm.toUpperCase()}, зангилаа: ${data.nodes.length}`;
+          if (data.total_weight != null) {
+            info += `, жин (ойролцоо урт): ${data.total_weight.toFixed(3)}`;
+          }
+          statusEl.textContent = info;
+        })
+        .catch((err) => {
+          console.error(err);
+          statusEl.textContent = "Серверийн алдаа (console-оо шалгаарай).";
+        });
+    }
+  </script>
+</body>
+</html>
