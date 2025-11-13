@@ -1,4 +1,3 @@
-# graph/io/loader.py
 from typing import Dict, Tuple, List
 import geopandas as gpd
 from shapely.geometry import LineString, MultiLineString
@@ -6,10 +5,6 @@ from ..road_graph import RoadGraph
 
 def load_graph_from_shapefile(shp_path: str,
                               reproject_to_meters: bool = False) -> RoadGraph:
-    """
-    OSM-н gis_osm_roads_free_1.shp → RoadGraph.
-    reproject_to_meters=True бол EPSG:3857 болгож сегментийн уртыг метрээр бодно.
-    """
     gdf = gpd.read_file(shp_path)
     if reproject_to_meters:
         gdf = gdf.to_crs(epsg=3857)
@@ -18,7 +13,7 @@ def load_graph_from_shapefile(shp_path: str,
     coord_to_id: Dict[Tuple[float, float], int] = {}
 
     def get_node_id(lon: float, lat: float) -> int:
-        key = (round(lon, 6), round(lat, 6))  # ойролцоолол
+        key = (round(lon, 6), round(lat, 6))
         if key not in coord_to_id:
             nid = len(coord_to_id)
             coord_to_id[key] = nid
@@ -31,7 +26,6 @@ def load_graph_from_shapefile(shp_path: str,
         fclass = row.get("fclass", None)
         oneway = row.get("oneway", "no")
 
-        # Автомашинд тохирохгүй замуудыг алгасна
         if access in ("no", "private"):
             continue
         if fclass in ("footway", "path", "track", "pedestrian", "steps", "cycleway"):
@@ -50,11 +44,7 @@ def load_graph_from_shapefile(shp_path: str,
             coords = list(line.coords)
             if len(coords) < 2:
                 continue
-
-            # урт: метр эсвэл градус (reproject_to_meters дээр тул)
             if reproject_to_meters:
-                # LineString.length нь метрээр (EPSG:3857)
-                # хэсэглэхдээ сегмент бүрд жинг (нийт урт / сегмент тоо) гэж хуваарилна
                 seg_len = line.length / (len(coords) - 1)
             else:
                 seg_len = line.length / (len(coords) - 1)

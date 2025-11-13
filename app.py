@@ -3,10 +3,8 @@ from rich.logging import RichHandler
 from rich.traceback import install as rich_traceback_install
 from flask import Flask, request, jsonify, render_template, g
 
-# --- Rich tracebacks (өнгө, context) ---
 rich_traceback_install(show_locals=False, width=120)
 
-# --- Rich logger ---
 LOG_LEVEL = logging.INFO
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -17,11 +15,9 @@ logging.basicConfig(
 logger = logging.getLogger("uv-logger")
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
-# ---------- ЗӨВ: app-г ганц удаа үүсгэнэ ----------
 app = Flask(__name__)
 app.logger.setLevel("INFO")
 
-# ---------- Click логлох endpoint ----------
 @app.post("/api/click")
 def api_click():
     try:
@@ -39,7 +35,6 @@ def api_click():
         logger.exception("click log parse error")
         return jsonify({"ok": False, "error": "bad payload"}), 400
 
-# ---------- Request timing + nice logs ----------
 @app.before_request
 def _start_timer():
     g._t0 = time.perf_counter()
@@ -82,7 +77,6 @@ def _log_request(resp):
         pass
     return resp
 
-# ---------- Imports after app (OK) ----------
 from graph import (
     RoadGraph,
     bfs_shortest_hops,
@@ -94,12 +88,11 @@ from graph.io.loader import load_graph_from_shapefile
 SHAPEFILE_PATH = "data/gis_osm_roads_free_1.shp"
 UB_CENTER = (47.918, 106.917)
 
-# ---------- Graph load ----------
+
 app.logger.info("Shapefile-с граф үүсгэж байна...")
 GRAPH: RoadGraph = load_graph_from_shapefile(SHAPEFILE_PATH, reproject_to_meters=False)
 app.logger.info(f"Граф үүссэн. node={len(GRAPH.nodes)}")
 
-# ---------- Routes ----------
 @app.route("/")
 def index():
     return render_template("index.html",

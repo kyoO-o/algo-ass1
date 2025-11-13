@@ -1,4 +1,3 @@
-# graph/algorithms/dfs.py
 from typing import List, Tuple, Dict, Optional, Iterable
 from ..road_graph import RoadGraph
 
@@ -8,9 +7,7 @@ def dfs_all_paths(graph: RoadGraph,
                   max_paths: int = 10,
                   max_depth: int = 20000,
                   max_expanded: int = 200000) -> List[List[int]]:
-    """
-    Итератив DFS – simple path хайна. Зорилт руу ойр хөршүүдийг түрүүлж шалгана.
-    """
+
     paths: List[List[int]] = []
     if start == goal:
         return [[start]]
